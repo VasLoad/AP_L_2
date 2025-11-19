@@ -5,7 +5,7 @@ from functools import cached_property
 import requests
 from requests.exceptions import RequestException
 
-from errors import EmptyValueForMethodError, URLException
+from errors import EmptyValueForMethodError
 
 
 class Hyperlink:
@@ -36,7 +36,9 @@ class Hyperlink:
     def _parsed(self) -> ParseResult:
         """Кэшированный результат urlparse для повторного использования."""
 
-        return urlparse(self.absolute or self.url)
+        url_to_parse = self.absolute if self.absolute is not None else self.url
+
+        return urlparse(url_to_parse)
 
     @property
     def is_absolute(self) -> bool:
@@ -44,19 +46,17 @@ class Hyperlink:
 
         return bool(urlparse(self.url).scheme)
 
-    @property
-    def is_internal(self) -> Optional[bool]:
-        """Является ли URL внутренним."""
-
-        if not self.base_url:
-            return None
-
-        if not self.is_absolute:
-            return True
-
-        domain = self.domain
-
-        return self._is_same_domain(domain)
+    # @property
+    # def is_internal(self) -> Optional[bool]:
+    #     """Является ли ссылка внутренней."""
+    #
+    #     if not self.base_url or not self.domain:
+    #         return None
+    #
+    #     if not self.is_absolute:
+    #         return True
+    #
+    #     return self._is_same_domain(urlparse(self._base_url).netloc)
 
     @cached_property
     def absolute(self) -> Optional[str]:
@@ -112,28 +112,30 @@ class Hyperlink:
             "base_url": self.base_url,
             "absolute_url": self.absolute,
             "is_absolute": self.is_absolute,
-            "is_internal": self.is_internal,
+            # "is_internal": self.is_internal,
             "scheme": self.scheme,
             "domain": self.domain,
             "path": self.path,
         }
 
-    def _is_same_domain(self, target: str) -> bool:
-        """Принадлежит ли текущий домен целевому.
+    # def _is_same_domain(self, target: str) -> bool:
+    #     """Принадлежит ли текущий домен целевому.
+    #
+    #     Args:
+    #         target: Целевой домен.
+    #     """
+    #
+    #     if not self.domain or not target:
+    #         return False
+    #
+    #     target = target.lower()
+    #
+    #     print(self.domain, "/", target)
+    #
+    #     return self.domain == target or self.domain.endswith('.' + target)
 
-        Args:
-            target: Целевой домен.
-        """
 
-        if not self.domain or not target:
-            return False
-
-        target = target.lower()
-
-        return self.domain == target or self.domain.endswith('.' + target)
-
-
-class HTMLLinkExtractor:
+class HyperlinkExtractor:
     """Класс для извлечения и анализа ссылок из файлов .HTML/ссылок/HTML-кода с использованием регулярных выражений.
     Возвращает список экземпляров класса Hyperlink.
     """
@@ -176,9 +178,7 @@ class HTMLLinkExtractor:
         """
 
         if not self._base_url:
-            print(EmptyValueForMethodError("base_url"))
-
-            return []
+            raise EmptyValueForMethodError("base_url")
 
         try:
             response = requests.get(self._base_url, timeout=25)
@@ -187,9 +187,7 @@ class HTMLLinkExtractor:
 
             return self.extract_from_html(response.text, unique)
         except RequestException:
-            print(URLException(self._base_url))
-
-            return []
+            raise
 
     def extract_from_html(self, html_content: str, unique: bool = False) -> list[Hyperlink]:
         """Извлекает ссылки и возвращает экземпляры класса Hyperlink из HTML-кода.
@@ -216,7 +214,7 @@ class HTMLLinkExtractor:
         return [Hyperlink(url=url, base_url=self._base_url) for url in urls]
 
     @staticmethod
-    def validate_links(links: list[Hyperlink]) -> list[dict[str, Any]]:
+    def validate_hyperlinks(links: list[Hyperlink]) -> list[dict[str, Any]]:
         """Возвращает список с информацией о каждой ссылке.
 
         Args:
@@ -246,13 +244,11 @@ if __name__ == "__main__":
     </html>
     """
 
-    extractor = HTMLLinkExtractor(base_url="https://example.com")
+    extractor = HyperlinkExtractor(base_url="https://example.com")
 
-    # 1. Извлечение
     links = extractor.extract_from_html(html)
     print(f"Найдено ссылок: {len(links)}")
 
-    # 2. Анализ каждой
     for link in links:
         info = link.info
 
@@ -260,8 +256,7 @@ if __name__ == "__main__":
         print(f"\tБазовая: {info["base_url"]}")
         print(f"\tАбсолютная: {info["absolute_url"]}")
         print(f"\tАбсолютная (?): {info["is_absolute"]}")
-        # print(f"\tВалидна: {info["is_valid"]}")
-        print(f"\tВнутренняя (?): {info["is_internal"]}")
+        # print(f"\tВнутренняя (?): {info["is_internal"]}")
         print(f"\tСхема: {info["scheme"]}")
         print(f"\tДомен: {info["domain"]}")
         print(f"\tПуть: {info["path"]}")
