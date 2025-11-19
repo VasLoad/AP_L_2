@@ -1,0 +1,1 @@
+HYPERLINK_PATTERN = r'<a\s+(?=[^>]*\bhref\b)[^>]*\bhref\s*=\s*([\'"])(?P<url>.*?)\1[^>]*>'

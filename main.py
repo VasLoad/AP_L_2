@@ -4,8 +4,11 @@ from urllib.parse import urljoin, urlparse, ParseResult
 from functools import cached_property
 import requests
 from requests.exceptions import RequestException
+from pathlib import Path
 
 from errors import EmptyValueForMethodError
+
+from config import HYPERLINK_PATTERN
 
 
 class Hyperlink:
@@ -45,18 +48,6 @@ class Hyperlink:
         """Является ли URL абсолютным."""
 
         return bool(urlparse(self.url).scheme)
-
-    # @property
-    # def is_internal(self) -> Optional[bool]:
-    #     """Является ли ссылка внутренней."""
-    #
-    #     if not self.base_url or not self.domain:
-    #         return None
-    #
-    #     if not self.is_absolute:
-    #         return True
-    #
-    #     return self._is_same_domain(urlparse(self._base_url).netloc)
 
     @cached_property
     def absolute(self) -> Optional[str]:
@@ -112,35 +103,16 @@ class Hyperlink:
             "base_url": self.base_url,
             "absolute_url": self.absolute,
             "is_absolute": self.is_absolute,
-            # "is_internal": self.is_internal,
             "scheme": self.scheme,
             "domain": self.domain,
             "path": self.path,
         }
-
-    # def _is_same_domain(self, target: str) -> bool:
-    #     """Принадлежит ли текущий домен целевому.
-    #
-    #     Args:
-    #         target: Целевой домен.
-    #     """
-    #
-    #     if not self.domain or not target:
-    #         return False
-    #
-    #     target = target.lower()
-    #
-    #     print(self.domain, "/", target)
-    #
-    #     return self.domain == target or self.domain.endswith('.' + target)
 
 
 class HyperlinkExtractor:
     """Класс для извлечения и анализа ссылок из файлов .HTML/ссылок/HTML-кода с использованием регулярных выражений.
     Возвращает список экземпляров класса Hyperlink.
     """
-
-    _LINK_PATTERN = re.compile(r'<a\s+(?=[^>]*\bhref\b)[^>]*\bhref\s*=\s*([\'"])(?P<url>.*?)\1[^>]*>', re.IGNORECASE)
 
     def __init__(self, base_url: Optional[str] = None):
         self._base_url = base_url.rstrip("/") if base_url else None
@@ -155,12 +127,31 @@ class HyperlinkExtractor:
         Returns:
             Список объектов Hyperlink.
             Без дубликатов, если unique=True.
+
+        Raises:
+            FileNotFoundError: Файл .HTML не найден.
+            ValueError: Указанный путь не является файлом .HTML.
+            PermissionError: Отсутствуют права на чтение файла.
+            OSError: Ошибка при чтении файла.
         """
 
-        with open(html_file_path, "r", encoding="utf-8") as html_file:
-            html_content = html_file.read()
+        path = Path(html_file_path)
 
-            return self.extract_from_html(html_content, unique)
+        if not path.exists():
+            raise FileNotFoundError(f"Файл .HTML не найден: {path}.")
+
+        if not path.is_file() or path.suffix not in (".html", ".htm"):
+            raise ValueError(f"Указанный путь не является файлом .HTML: {path}.")
+
+        try:
+            with open(html_file_path, "r", encoding="utf-8") as html_file:
+                html_content = html_file.read()
+        except PermissionError:
+            raise PermissionError(f"Отсутствуют права на чтение файла {path}.")
+        except OSError as ex:
+            raise OSError(f"Ошибка при чтении файла {path}.\nТекст ошибки: {ex}")
+
+        return self.extract_from_html(html_content, unique)
 
     def extract_from_url(self, unique: bool = False) -> list[Hyperlink]:
         """Извлекает ссылки и возвращает экземпляры класса Hyperlink из url.
@@ -186,8 +177,8 @@ class HyperlinkExtractor:
             response.raise_for_status()
 
             return self.extract_from_html(response.text, unique)
-        except RequestException:
-            raise
+        except RequestException as ex:
+            raise RequestException(f"Ошибка при получении доступа к удалённому ресурсу {self._base_url}.\nТекст ошибки: {ex}")
 
     def extract_from_html(self, html_content: str, unique: bool = False) -> list[Hyperlink]:
         """Извлекает ссылки и возвращает экземпляры класса Hyperlink из HTML-кода.
@@ -204,7 +195,7 @@ class HyperlinkExtractor:
         if not html_content:
             return []
 
-        matches = self._LINK_PATTERN.finditer(html_content)
+        matches = re.compile(HYPERLINK_PATTERN, re.IGNORECASE).finditer(html_content)
 
         urls = [match.group("url").strip() for match in matches]
 
@@ -256,7 +247,11 @@ if __name__ == "__main__":
         print(f"\tБазовая: {info["base_url"]}")
         print(f"\tАбсолютная: {info["absolute_url"]}")
         print(f"\tАбсолютная (?): {info["is_absolute"]}")
-        # print(f"\tВнутренняя (?): {info["is_internal"]}")
         print(f"\tСхема: {info["scheme"]}")
         print(f"\tДомен: {info["domain"]}")
         print(f"\tПуть: {info["path"]}")
+
+    print(len(HyperlinkExtractor("https://convertio.co/ru/mp3-ogg/").extract_from_url(unique=True)))
+
+    for link in HyperlinkExtractor().extract_from_file("file.html"):
+        print(link.info, end="\n")

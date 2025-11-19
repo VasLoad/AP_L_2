@@ -38,45 +38,9 @@ class TestHyperlink(unittest.TestCase):
     def test_protocol_relative_url(self):
         link = Hyperlink("//evil.com/hack", base_url="https://example.com")
 
-        self.assertFalse(link.is_absolute)  # urlparse считает //evil.com схемой пустой
+        self.assertFalse(link.is_absolute)
         self.assertEqual(link.absolute, "https://evil.com/hack")
         self.assertEqual(link.domain, "evil.com")
-
-    # def test_internal_link_detection(self):
-    #     tests = [
-    #         ("https://example.com/page", "https://example.com", True),
-    #         ("https://sub.example.com", "https://example.com", False),
-    #         ("https://example.com", "https://example.com", True),
-    #         ("//example.com", "https://example.com", True),
-    #         ("//sub.example.com", "https://example.com", False),
-    #         ("/internal", "https://example.com", True),
-    #     ]
-    #
-    #     for url, base, expected in tests:
-    #         with self.subTest(url=url):
-    #             link = Hyperlink(url, base_url=base)
-    #
-    #             self.assertEqual(link.is_internal, expected)
-    #
-    # def test_subdomain_is_not_internal(self):
-    #     link = Hyperlink("https://blog.example.com", base_url="https://example.com")
-    #
-    #     self.assertFalse(link.is_internal)
-    #
-    # def test_anchor_only(self):
-    #     link = Hyperlink("#section", base_url="https://example.com/page")
-    #
-    #     self.assertFalse(link.is_absolute)
-    #     self.assertEqual(link.absolute, "https://example.com/page#section")
-    #     self.assertTrue(link.is_internal)
-    #
-    # def test_mailto(self):
-    #     link = Hyperlink("mailto:user@example.com", base_url="https://example.com")
-    #
-    #     self.assertTrue(link.is_absolute)
-    #     self.assertEqual(link.absolute, "mailto:user@example.com")
-    #     self.assertIsNone(link.domain)
-    #     self.assertIsNone(link.is_internal)
 
     def test_spaces_in_url(self):
         link = Hyperlink("   https://example.com/spaces   ", base_url="https://example.com")
@@ -92,10 +56,8 @@ class TestHyperlink(unittest.TestCase):
         self.assertIsInstance(info, dict)
         self.assertEqual(info["url"], "/test")
         self.assertEqual(info["absolute_url"], "https://example.com/test")
-        # self.assertTrue(info["is_internal"])
 
 class TestHTMLLinkExtractor(unittest.TestCase):
-
     def setUp(self):
         self.extractor = HyperlinkExtractor(base_url="https://example.com/")
 
@@ -130,15 +92,59 @@ class TestHTMLLinkExtractor(unittest.TestCase):
         self.assertEqual(len(links_unique), 1)
         self.assertEqual(links_unique[0].url, "/dup")
 
-    def test_extract_from_file(self):
-        html_content = '<a href="/from_file">Test</a>'
+    def test_extract_from_file_success(self):
+        html_content = '<a href="/page1">Link1</a><a href="/page2">Link2</a>'
 
-        with patch("builtins.open", mock_open(read_data=html_content)):
-            links = self.extractor.extract_from_file("fake.html")
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("pathlib.Path.is_file", return_value=True):
+                with patch("builtins.open", mock_open(read_data=html_content)):
+                    links = self.extractor.extract_from_file("fake/path.html")
 
-        self.assertEqual(len(links), 1)
-        self.assertEqual(links[0].url, "/from_file")
-        self.assertEqual(links[0].absolute, "https://example.com/from_file")
+        self.assertEqual(len(links), 2)
+        self.assertEqual(links[0].url, "/page1")
+        self.assertEqual(links[1].absolute, "https://example.com/page2")
+
+    def test_extract_from_file_with_unique(self):
+        html_content = '''
+        <a href="/dup">1</a>
+        <a href="/dup">2</a>
+        <a href="/unique">Only one</a>
+        '''
+
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("pathlib.Path.is_file", return_value=True):
+                with patch("builtins.open", mock_open(read_data=html_content)):
+                    links = self.extractor.extract_from_file("fake.html", unique=True)
+
+        self.assertEqual(len(links), 2)
+        urls = {link.url for link in links}
+        self.assertEqual(urls, {"/dup", "/unique"})
+
+    def test_extract_from_file_not_found(self):
+        with patch("pathlib.Path.exists", return_value=False):
+            with self.assertRaises(FileNotFoundError) as cm:
+                self.extractor.extract_from_file("/non/existent/file.html")
+
+        self.assertIn("Файл .HTML не найден", str(cm.exception))
+
+    def test_extract_from_file_not_a_file(self):
+        # Например, это директория
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("pathlib.Path.is_file", return_value=False):
+                with self.assertRaises(ValueError) as cm:
+                    self.extractor.extract_from_file("/some/directory/")
+
+        self.assertIn("Указанный путь не является файлом", str(cm.exception))
+
+    def test_extract_from_file_read_error(self):
+        # Например, Permission denied или другая ошибка при открытии
+        with patch("pathlib.Path.exists", return_value=True):
+            with patch("pathlib.Path.is_file", return_value=True):
+                with patch("builtins.open") as mocked_open:
+                    mocked_open.side_effect = OSError("Permission denied")
+
+                    with self.assertRaises(OSError):
+                        self.extractor.extract_from_file("protected.html")
 
     def test_extract_from_url_success(self):
         mock_response = MagicMock()
@@ -181,8 +187,6 @@ class TestHTMLLinkExtractor(unittest.TestCase):
 
         self.assertEqual(len(result), 2)
         self.assertIn("absolute_url", result[0])
-        # self.assertIn("is_internal", result[0])
-        # self.assertTrue(result[1]["is_internal"])
 
     def test_empty_html(self):
         links = self.extractor.extract_from_html("")
