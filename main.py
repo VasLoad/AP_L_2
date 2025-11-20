@@ -25,28 +25,40 @@ class Link:
 
     @property
     def url(self) -> str:
-        """Ссылка"""
+        """Ссылка
+
+        Returns:
+            Ссылка
+        """
 
         return self._url
 
     @property
-    def base_url(self) -> str:
-        """Базовая ссылка"""
+    def base_url(self) -> Optional[str]:
+        """Базовая ссылка или None
+
+        Returns:
+            Базовая ссылка или None
+        """
 
         return self._base_url
 
     @property
     def is_absolute(self) -> bool:
-        """Является ли URL абсолютным"""
+        """Является ли URL абсолютным
+
+        Returns:
+            Является ли URL абсолютным
+        """
 
         return bool(urlparse(self.url).scheme)
 
     @cached_property
     def absolute(self) -> Optional[str]:
-        """Абсолютный URL (при наличии).
+        """Абсолютный URL или None
 
         Returns:
-            Абсолютный URL при наличии.
+            Абсолютный URL или None
         """
 
         if self.is_absolute:
@@ -59,7 +71,11 @@ class Link:
 
     @cached_property
     def scheme(self) -> Optional[str]:
-        """Схема абсолютного URL или None"""
+        """Схема абсолютного URL или None
+
+        Returns:
+            Схема абсолютного URL или None
+        """
 
         if self.absolute:
             return self._parsed.scheme
@@ -68,7 +84,11 @@ class Link:
 
     @cached_property
     def domain(self) -> Optional[str]:
-        """Домен в нижнем регистре или None"""
+        """Домен в нижнем регистре или None
+
+        Returns:
+            Домен в нижнем регистре или None
+        """
 
         if self.absolute:
             domain = self._parsed.netloc
@@ -79,7 +99,11 @@ class Link:
 
     @cached_property
     def path(self) -> Optional[str]:
-        """Путь абсолютной ссылки или None"""
+        """Путь абсолютной ссылки или None
+
+        Returns:
+            Путь абсолютной ссылки или None
+        """
 
         if self.absolute:
             return urlparse(self.absolute).path or None
@@ -88,7 +112,11 @@ class Link:
 
     @property
     def info(self) -> dict[str, Any]:
-        """Информация о ссылке в виде словаря"""
+        """Информация о ссылке в виде словаря
+
+        Returns:
+            Информация о ссылке в виде словаря
+        """
 
         return {
             "url": self.url,
@@ -102,7 +130,11 @@ class Link:
 
     @cached_property
     def _parsed(self) -> ParseResult:
-        """Кэшированный результат urlparse для повторного использования"""
+        """Кэшированный результат urlparse
+
+        Returns:
+            Кэшированный результат urlparse
+        """
 
         url_to_parse = self.absolute if self.absolute is not None else self.url
 
