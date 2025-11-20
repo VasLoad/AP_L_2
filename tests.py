@@ -3,10 +3,16 @@ import unittest
 from main import LinkExtractor
 
 class TestHyperlinkRegex(unittest.TestCase):
+    """Класс тестов регулярного выражения для поиска гиперссылок."""
+
     def setUp(self):
+        """Создаёт новый экземпляр класса LinkExtractor при каждом новом тесте."""
+
         self.extractor = LinkExtractor()
 
     def test_with_enters(self):
+        """Проверяет гиперссылки с пробельными символами."""
+
         html_code = """
             <a href="https://convertio.co/ru/" aria-label="Go to index page">
                 <svg xmlns="http://www.w3.org/2000/svg" width="147" height="30" viewBox="0 0 147 30">
@@ -30,7 +36,7 @@ class TestHyperlinkRegex(unittest.TestCase):
         self.assertEqual(len(self.extractor.extract_from_html_code(html_code)), 9)
 
     def test_valid_quoted(self):
-        """Проверяет гиперссылки с корректными кавычками"""
+        """Проверяет гиперссылки с корректными кавычками."""
 
         hyperlinks = [
             '<a href="https://example.ru">',
@@ -44,7 +50,7 @@ class TestHyperlinkRegex(unittest.TestCase):
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
 
     def test_invalid_quoted(self):
-        """Проверяет гиперссылки с некорректными кавычками"""
+        """Проверяет гиперссылки с некорректными кавычками."""
 
         hyperlinks = [
             '<a href=https://example.ru>',
@@ -57,7 +63,7 @@ class TestHyperlinkRegex(unittest.TestCase):
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 0)
 
     def test_spaces_inside_quotes(self):
-        """Проверяет гиперссылки с пробелами внутри ссылки"""
+        """Проверяет гиперссылки с пробелами внутри ссылки."""
 
         hyperlinks = [
             '<a href="    https://example.ru">',
@@ -69,7 +75,7 @@ class TestHyperlinkRegex(unittest.TestCase):
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
 
     def test_spaces_near_href_equal_operator(self):
-        """Проверяет гиперссылки с пробелами между = после атрибута href"""
+        """Проверяет гиперссылки с пробелами между = после атрибута href."""
 
         hyperlinks = [
             '<a href ="https://example.ru">',
@@ -81,7 +87,7 @@ class TestHyperlinkRegex(unittest.TestCase):
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
 
     def test_empty_url(self):
-        """Проверяет гиперссылки на пустые ссылки"""
+        """Проверяет гиперссылки на пустые ссылки."""
 
         hyperlinks = [
             '<a href="     ">',
@@ -92,7 +98,7 @@ class TestHyperlinkRegex(unittest.TestCase):
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
 
     def test_with_other_attributes(self):
-        """Проверяет гиперссылки с другими атрибутами до href"""
+        """Проверяет гиперссылки с другими атрибутами до href."""
 
         hyperlinks = [
             '<a target="target" href="https://example.ru">',
@@ -106,7 +112,7 @@ class TestHyperlinkRegex(unittest.TestCase):
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
 
     def test_with_unicode_characters(self):
-        """Проверяет гиперссылки с символами из Unicode"""
+        """Проверяет гиперссылки с символами из Unicode."""
 
         hyperlinks = [
             '<a href="https://example.рф">',
@@ -117,7 +123,7 @@ class TestHyperlinkRegex(unittest.TestCase):
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
 
     def test_href_with_html_entities(self):
-        """Проверяет гиперссылки с сущностями HTML"""
+        """Проверяет гиперссылки с сущностями HTML."""
 
         hyperlinks = [
             '<a href="https://example.ru?a=1&amp;b=2">',
@@ -128,7 +134,7 @@ class TestHyperlinkRegex(unittest.TestCase):
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
 
     def test_with_different_schemes(self):
-        """Проверяет гиперссылки с различными схемами"""
+        """Проверяет гиперссылки с различными схемами."""
 
         hyperlinks = [
             '<a href="ftp://example.ru/file.txt">',
@@ -140,7 +146,7 @@ class TestHyperlinkRegex(unittest.TestCase):
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
 
     def test_invalid_href_name(self):
-        """Проверяет гиперссылки с неправильным атрибутом href"""
+        """Проверяет гиперссылки с неправильным атрибутом href."""
 
         hyperlinks = [
             '<a name="name">',
@@ -154,7 +160,7 @@ class TestHyperlinkRegex(unittest.TestCase):
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 0)
 
     def test_other_attributes_with_href_word_are_ignored(self):
-        """Проверяет гиперссылки со сломанным тегом <a>"""
+        """Проверяет гиперссылки со сломанным тегом <a>."""
 
         hyperlinks = [
             '<a href="https://example.ru',

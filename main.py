@@ -25,40 +25,40 @@ class Link:
 
     @property
     def url(self) -> str:
-        """Ссылка
+        """Ссылка.
 
         Returns:
-            Ссылка
+            Ссылка.
         """
 
         return self._url
 
     @property
     def base_url(self) -> Optional[str]:
-        """Базовая ссылка или None
+        """Базовая ссылка или None.
 
         Returns:
-            Базовая ссылка или None
+            Базовая ссылка или None.
         """
 
         return self._base_url
 
     @property
     def is_absolute(self) -> bool:
-        """Является ли URL абсолютным
+        """Является ли URL абсолютным.
 
         Returns:
-            Является ли URL абсолютным
+            Является ли URL абсолютным.
         """
 
         return bool(urlparse(self.url).scheme)
 
     @cached_property
     def absolute(self) -> Optional[str]:
-        """Абсолютный URL или None
+        """Абсолютный URL или None.
 
         Returns:
-            Абсолютный URL или None
+            Абсолютный URL или None.
         """
 
         if self.is_absolute:
@@ -71,10 +71,10 @@ class Link:
 
     @cached_property
     def scheme(self) -> Optional[str]:
-        """Схема абсолютного URL или None
+        """Схема абсолютного URL или None.
 
         Returns:
-            Схема абсолютного URL или None
+            Схема абсолютного URL или None.
         """
 
         if self.absolute:
@@ -84,10 +84,10 @@ class Link:
 
     @cached_property
     def domain(self) -> Optional[str]:
-        """Домен в нижнем регистре или None
+        """Домен в нижнем регистре или None.
 
         Returns:
-            Домен в нижнем регистре или None
+            Домен в нижнем регистре или None.
         """
 
         if self.absolute:
@@ -99,10 +99,10 @@ class Link:
 
     @cached_property
     def path(self) -> Optional[str]:
-        """Путь абсолютной ссылки или None
+        """Путь абсолютной ссылки или None.
 
         Returns:
-            Путь абсолютной ссылки или None
+            Путь абсолютной ссылки или None.
         """
 
         if self.absolute:
@@ -112,10 +112,10 @@ class Link:
 
     @property
     def info(self) -> dict[str, Any]:
-        """Информация о ссылке в виде словаря
+        """Информация о ссылке в виде словаря.
 
         Returns:
-            Информация о ссылке в виде словаря
+            Информация о ссылке в виде словаря.
         """
 
         return {
@@ -130,10 +130,10 @@ class Link:
 
     @cached_property
     def _parsed(self) -> ParseResult:
-        """Кэшированный результат urlparse
+        """Кэшированный результат urlparse.
 
         Returns:
-            Кэшированный результат urlparse
+            Кэшированный результат urlparse.
         """
 
         url_to_parse = self.absolute if self.absolute is not None else self.url
@@ -143,7 +143,9 @@ class Link:
 
 class LinkExtractor:
     """Класс для извлечения и анализа ссылок из файлов .HTML/ссылок/HTML-кода с использованием регулярных выражений.
-    Возвращает список экземпляров класса Link.
+
+    Returns:
+        Список экземпляров класса Link.
     """
 
     def __init__(self, base_url: Optional[str] = None):
@@ -153,17 +155,16 @@ class LinkExtractor:
         """Извлекает ссылки и возвращает экземпляры класса Link из файла .HTML.
 
         Args:
-            html_file_path: путь к файлу .HTML.
+            html_file_path: путь к файлу .HTML;
             unique: Если True - дубликаты ссылок удаляются. По умолчанию False.
 
         Returns:
-            Список объектов Link.
-            Без дубликатов, если unique=True.
+            Список объектов Link (без дубликатов, если unique is True).
 
         Raises:
-            FileNotFoundError: Файл .HTML не найден.
-            ValueError: Указанный путь не является файлом .HTML.
-            PermissionError: Отсутствуют права на чтение файла.
+            FileNotFoundError: Файл .HTML не найден;
+            ValueError: Указанный путь не является файлом .HTML;
+            PermissionError: Отсутствуют права на чтение файла;
             OSError: Ошибка при чтении файла.
         """
 
@@ -192,11 +193,10 @@ class LinkExtractor:
             unique: Если True - дубликаты ссылок удаляются. По умолчанию False.
 
         Returns:
-            Список объектов Link.
-            Без дубликатов, если unique=True.
+            Список объектов Link (без дубликатов, если unique is True).
 
         Raises:
-            EmptyValueForMethodError: Поле "base_url" не может быть пустым для выполнения данного метода.
+            EmptyValueForMethodError: Поле "base_url" не может быть пустым для выполнения данного метода;
             RequestException: Ошибка при получении доступа к удалённому ресурсу.
         """
 
@@ -216,12 +216,11 @@ class LinkExtractor:
         """Извлекает ссылки и возвращает экземпляры класса Link из HTML-кода.
 
         Args:
-            html_content: HTML-код.
+            html_content: HTML-код;
             unique: Если True - дубликаты ссылок удаляются. По умолчанию False.
 
         Returns:
-            Список объектов Link.
-            Без дубликатов, если unique=True.
+            Список объектов Link (без дубликатов, если unique is True).
         """
 
         if not html_content:
@@ -243,7 +242,7 @@ class LinkExtractor:
         """Возвращает список с информацией о каждой ссылке.
 
         Args:
-            links: Список объектов Link.
+            links: Список экземпляров класса Link.
 
         Returns:
             Список словарей с анализом.
