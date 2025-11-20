@@ -228,7 +228,7 @@ if __name__ == "__main__":
             <a href="/relative/path">Гиперссылка 2</a>
             <a href="contact.html">Гиперссылка 3</a>
             <a href="../about/team">Гиперссылка 4</a>
-            <a href="//evil.com/hack">Гиперссылка 5</a>
+            <a href="//youtube.com/video">Гиперссылка 5</a>
             <a href="https://sub.example.ru/test">Гиперссылка 6</a>
             <a href="#section2">Гиперссылка 7</a>
             <a href="mailto:user@example.ru">Гиперссылка 8</a>
