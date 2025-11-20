@@ -1,201 +1,171 @@
 import unittest
-from requests import RequestException
-from unittest.mock import patch, mock_open, MagicMock
 
-from main import Hyperlink, HyperlinkExtractor
+from main import LinkExtractor
 
-from errors import EmptyValueForMethodError
-
-
-class TestHyperlink(unittest.TestCase):
-    def test_absolute_url(self):
-        link = Hyperlink("https://example.com/path/to/page.html")
-
-        self.assertTrue(link.is_absolute)
-        self.assertEqual(link.absolute, "https://example.com/path/to/page.html")
-        self.assertEqual(link.scheme, "https")
-        self.assertEqual(link.domain, "example.com")
-        self.assertEqual(link.path, "/path/to/page.html")
-
-    def test_relative_url_with_base(self):
-        link = Hyperlink("/relative/path", base_url="https://example.com/base/")
-
-        self.assertFalse(link.is_absolute)
-        self.assertEqual(link.absolute, "https://example.com/relative/path")
-        self.assertEqual(link.scheme, "https")
-        self.assertEqual(link.domain, "example.com")
-        self.assertEqual(link.path, "/relative/path")
-
-    def test_relative_url_without_base(self):
-        link = Hyperlink("/relative/path")
-
-        self.assertFalse(link.is_absolute)
-        self.assertIsNone(link.absolute)
-        self.assertIsNone(link.scheme)
-        self.assertIsNone(link.domain)
-        self.assertIsNone(link.path)
-
-    def test_protocol_relative_url(self):
-        link = Hyperlink("//evil.com/hack", base_url="https://example.com")
-
-        self.assertFalse(link.is_absolute)
-        self.assertEqual(link.absolute, "https://evil.com/hack")
-        self.assertEqual(link.domain, "evil.com")
-
-    def test_spaces_in_url(self):
-        link = Hyperlink("   https://example.com/spaces   ", base_url="https://example.com")
-
-        self.assertEqual(link.url, "https://example.com/spaces")
-        self.assertTrue(link.is_absolute)
-
-    def test_info_property(self):
-        link = Hyperlink("/test", base_url="https://example.com")
-
-        info = link.info
-
-        self.assertIsInstance(info, dict)
-        self.assertEqual(info["url"], "/test")
-        self.assertEqual(info["absolute_url"], "https://example.com/test")
-
-class TestHTMLLinkExtractor(unittest.TestCase):
+class TestHyperlinkRegex(unittest.TestCase):
     def setUp(self):
-        self.extractor = HyperlinkExtractor(base_url="https://example.com/")
+        self.extractor = LinkExtractor()
 
-    def test_extract_from_html_basic(self):
-        html = '''
-        <a href="https://example.com/abs">Abs</a>
-        <a href="/rel">Rel</a>
-        <a href="  /spaced  ">Spaced</a>
-        <a href='single.html'>Single quotes</a>
-        '''
+    def test_with_enters(self):
+        html_code = """
+            <a href="https://convertio.co/ru/" aria-label="Go to index page">
+                <svg xmlns="http://www.w3.org/2000/svg" width="147" height="30" viewBox="0 0 147 30">
+                <path fill="#ff3333"
+                      d="M15.047 30C6.737 30 0 23.284 0 15 0 6.716 6.737 0 15.047 0s15.047 6.716 15.047 15c0 8.284-6..889-1.695-1.673-2.229-2.95-2.229-5.111h2.898L8.694 8.667l-5.573 6.222h2.675z"></path>
+                <path fill="#282828"
+                      d=74-.838-.56-1.773-.56-2.805 0-1.032.186-1.963.56-2.792a6.27 6.27 0 0 1 1.515-2.107 6.593 6.593 0 0 1 2.568.5.941-.748.255-.313.446-.665.573-1.054.128-.389.191-.787.191-1.193z"></path>
+                </svg>
+            </a>
+            
+            <a\nhref="https://example.ru">
+            <a href=\n"https://example.ru">
+            <a target="target"\nhref="https://example.ru">
+            <a href="https://example.ru"\ntarget="target">
+            <a\t\nhref="https://example.ru">
+            <a href="https://example.ru"\n>Гиперссылка</a>
+            <a href="https://example.ru">Д\nа\nн\nн\nы\nе</a>
+            <a href="https://example.ru">\nЧто-то\n
+        """
 
-        links = self.extractor.extract_from_html(html)
+        self.assertEqual(len(self.extractor.extract_from_html_code(html_code)), 9)
 
-        self.assertEqual(len(links), 4)
-        urls = [l.url for l in links]
-        self.assertIn("https://example.com/abs", urls)
-        self.assertIn("/rel", urls)
-        self.assertIn("/spaced", urls)
-        self.assertIn("single.html", urls)
+    def test_valid_quoted(self):
+        """Проверяет гиперссылки с корректными кавычками"""
 
-    def test_unique_flag(self):
-        html = '''
-        <a href="/dup">1</a>
-        <a href="/dup">2</a>
-        <a href="/dup">3</a>
-        '''
-
-        links_with_dup = self.extractor.extract_from_html(html, unique=False)
-        links_unique = self.extractor.extract_from_html(html, unique=True)
-
-        self.assertEqual(len(links_with_dup), 3)
-        self.assertEqual(len(links_unique), 1)
-        self.assertEqual(links_unique[0].url, "/dup")
-
-    def test_extract_from_file_success(self):
-        html_content = '<a href="/page1">Link1</a><a href="/page2">Link2</a>'
-
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("pathlib.Path.is_file", return_value=True):
-                with patch("builtins.open", mock_open(read_data=html_content)):
-                    links = self.extractor.extract_from_file("fake/path.html")
-
-        self.assertEqual(len(links), 2)
-        self.assertEqual(links[0].url, "/page1")
-        self.assertEqual(links[1].absolute, "https://example.com/page2")
-
-    def test_extract_from_file_with_unique(self):
-        html_content = '''
-        <a href="/dup">1</a>
-        <a href="/dup">2</a>
-        <a href="/unique">Only one</a>
-        '''
-
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("pathlib.Path.is_file", return_value=True):
-                with patch("builtins.open", mock_open(read_data=html_content)):
-                    links = self.extractor.extract_from_file("fake.html", unique=True)
-
-        self.assertEqual(len(links), 2)
-        urls = {link.url for link in links}
-        self.assertEqual(urls, {"/dup", "/unique"})
-
-    def test_extract_from_file_not_found(self):
-        with patch("pathlib.Path.exists", return_value=False):
-            with self.assertRaises(FileNotFoundError) as cm:
-                self.extractor.extract_from_file("/non/existent/file.html")
-
-        self.assertIn("Файл .HTML не найден", str(cm.exception))
-
-    def test_extract_from_file_not_a_file(self):
-        # Например, это директория
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("pathlib.Path.is_file", return_value=False):
-                with self.assertRaises(ValueError) as cm:
-                    self.extractor.extract_from_file("/some/directory/")
-
-        self.assertIn("Указанный путь не является файлом", str(cm.exception))
-
-    def test_extract_from_file_read_error(self):
-        # Например, Permission denied или другая ошибка при открытии
-        with patch("pathlib.Path.exists", return_value=True):
-            with patch("pathlib.Path.is_file", return_value=True):
-                with patch("builtins.open") as mocked_open:
-                    mocked_open.side_effect = OSError("Permission denied")
-
-                    with self.assertRaises(OSError):
-                        self.extractor.extract_from_file("protected.html")
-
-    def test_extract_from_url_success(self):
-        mock_response = MagicMock()
-        mock_response.text = '<a href="/from_url">OK</a>'
-        mock_response.raise_for_status.return_value = None
-
-        with patch("requests.get", return_value=mock_response) as mocked_get:
-            links = self.extractor.extract_from_url()
-
-        mocked_get.assert_called_once_with("https://example.com", timeout=25)
-        self.assertEqual(len(links), 1)
-        self.assertEqual(links[0].url, "/from_url")
-
-    def test_extract_from_url_no_base_url(self):
-        extractor_no_base = HyperlinkExtractor()
-
-        with self.assertRaises(EmptyValueForMethodError) as cm:
-            extractor_no_base.extract_from_url()
-
-        self.assertEqual(str(cm.exception), str(EmptyValueForMethodError("base_url")))
-
-    def test_extract_from_url_request_exception(self):
-        extractor = HyperlinkExtractor(base_url="https://example.com")
-
-        with patch.object(extractor, "extract_from_url") as mock_fetch_html:
-            mock_fetch_html.side_effect = RequestException("Connection error")
-
-            with self.assertRaises(RequestException) as cm:
-                extractor.extract_from_url()
-
-        self.assertIsInstance(cm.exception, RequestException)
-
-    def test_validate_links_static(self):
-        links = [
-            Hyperlink("https://example.com/1", base_url="https://example.com"),
-            Hyperlink("/2", base_url="https://example.com"),
+        hyperlinks = [
+            '<a href="https://example.ru">',
+            "<a href='https://example.ru'>",
+            '<a href = "https://example.ru">',
+            '<a href\t=\t"https://example.ru">',
+            '<a HREF="https://example.ru">'
         ]
 
-        result = HyperlinkExtractor.validate_hyperlinks(links)
+        for hyperlink in hyperlinks:
+            self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
 
-        self.assertEqual(len(result), 2)
-        self.assertIn("absolute_url", result[0])
+    def test_invalid_quoted(self):
+        """Проверяет гиперссылки с некорректными кавычками"""
 
-    def test_empty_html(self):
-        links = self.extractor.extract_from_html("")
-        self.assertEqual(links, [])
+        hyperlinks = [
+            '<a href=https://example.ru>',
+            "<a href='https://example.ru\">",
+            '<a href="https://example.ru\'>',
+            '<a href=https://example.ru>'
+        ]
 
-    def test_no_a_tags(self):
-        html = "<div>No links here</div>"
-        links = self.extractor.extract_from_html(html)
-        self.assertEqual(links, [])
+        for hyperlink in hyperlinks:
+            self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 0)
+
+    def test_spaces_inside_quotes(self):
+        """Проверяет гиперссылки с пробелами внутри ссылки"""
+
+        hyperlinks = [
+            '<a href="    https://example.ru">',
+            '<a href="https://example.ru    ">',
+            '<a href="    https://example.ru    ">'
+        ]
+
+        for hyperlink in hyperlinks:
+            self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
+
+    def test_spaces_near_href_equal_operator(self):
+        """Проверяет гиперссылки с пробелами между = после атрибута href"""
+
+        hyperlinks = [
+            '<a href ="https://example.ru">',
+            '<a href= "https://example.ru">',
+            '<a href = "https://example.ru">'
+        ]
+
+        for hyperlink in hyperlinks:
+            self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
+
+    def test_empty_url(self):
+        """Проверяет гиперссылки на пустые ссылки"""
+
+        hyperlinks = [
+            '<a href="     ">',
+            '<a href="">'
+        ]
+
+        for hyperlink in hyperlinks:
+            self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
+
+    def test_with_other_attributes(self):
+        """Проверяет гиперссылки с другими атрибутами до href"""
+
+        hyperlinks = [
+            '<a target="target" href="https://example.ru">',
+            '<a class="hyperlink" href="https://example.ru">',
+            '<a href="https://example.ru" target="target">',
+            '<a href="https://example.ru" class="hyperlink">',
+            '<a target="target" href="https://example.ru" class="hyperlink">'
+        ]
+
+        for hyperlink in hyperlinks:
+            self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
+
+    def test_with_unicode_characters(self):
+        """Проверяет гиперссылки с символами из Unicode"""
+
+        hyperlinks = [
+            '<a href="https://example.рф">',
+            '<a href="https://сайт.рф">'
+        ]
+
+        for hyperlink in hyperlinks:
+            self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
+
+    def test_href_with_html_entities(self):
+        """Проверяет гиперссылки с сущностями HTML"""
+
+        hyperlinks = [
+            '<a href="https://example.ru?a=1&amp;b=2">',
+            '<a href="https://example.ru/with%20path/">'
+        ]
+
+        for hyperlink in hyperlinks:
+            self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
+
+    def test_with_different_schemes(self):
+        """Проверяет гиперссылки с различными схемами"""
+
+        hyperlinks = [
+            '<a href="ftp://example.ru/file.txt">',
+            '<a href="tel:+71234567890">',
+            '<a href="javascript:void(0)">'
+        ]
+
+        for hyperlink in hyperlinks:
+            self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
+
+    def test_invalid_href_name(self):
+        """Проверяет гиперссылки с неправильным атрибутом href"""
+
+        hyperlinks = [
+            '<a name="name">',
+            '<a>Клик</a>',
+            '<a></a>',
+            '<a data-href=""></a>',
+            '<a href=>'
+        ]
+
+        for hyperlink in hyperlinks:
+            self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 0)
+
+    def test_other_attributes_with_href_word_are_ignored(self):
+        """Проверяет гиперссылки со сломанным тегом <a>"""
+
+        hyperlinks = [
+            '<a href="https://example.ru',
+            '<a href="https://example.ru>',
+            '<a href="https://example.ru" random_attribute',
+            '<a href=">',
+            '<a href=>'
+        ]
+
+        for hyperlink in hyperlinks:
+            self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 0)
 
 
 if __name__ == '__main__':

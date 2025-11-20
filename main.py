@@ -11,8 +11,8 @@ from errors import EmptyValueForMethodError
 from config import HYPERLINK_PATTERN
 
 
-class Hyperlink:
-    """Класс гиперссылки.
+class Link:
+    """Класс ссылки.
 
     Attributes:
         _url: Ссылка.
@@ -25,19 +25,19 @@ class Hyperlink:
 
     @property
     def url(self) -> str:
-        """Ссылка."""
+        """Ссылка"""
 
         return self._url
 
     @property
     def base_url(self) -> str:
-        """Базовая ссылка."""
+        """Базовая ссылка"""
 
         return self._base_url
 
     @cached_property
     def _parsed(self) -> ParseResult:
-        """Кэшированный результат urlparse для повторного использования."""
+        """Кэшированный результат urlparse для повторного использования"""
 
         url_to_parse = self.absolute if self.absolute is not None else self.url
 
@@ -45,13 +45,13 @@ class Hyperlink:
 
     @property
     def is_absolute(self) -> bool:
-        """Является ли URL абсолютным."""
+        """Является ли URL абсолютным"""
 
         return bool(urlparse(self.url).scheme)
 
     @cached_property
     def absolute(self) -> Optional[str]:
-        """Получение абсолютного URL (при наличии).
+        """Абсолютный URL (при наличии).
 
         Returns:
             Абсолютный URL при наличии.
@@ -67,7 +67,7 @@ class Hyperlink:
 
     @cached_property
     def scheme(self) -> Optional[str]:
-        """Схема абсолютного URL или None."""
+        """Схема абсолютного URL или None"""
 
         if self.absolute:
             return self._parsed.scheme
@@ -76,7 +76,7 @@ class Hyperlink:
 
     @cached_property
     def domain(self) -> Optional[str]:
-        """Домен в нижнем регистре или None."""
+        """Домен в нижнем регистре или None"""
 
         if self.absolute:
             domain = self._parsed.netloc
@@ -87,7 +87,7 @@ class Hyperlink:
 
     @cached_property
     def path(self) -> Optional[str]:
-        """Путь абсолютной ссылки или None."""
+        """Путь абсолютной ссылки или None"""
 
         if self.absolute:
             return urlparse(self.absolute).path or None
@@ -96,7 +96,7 @@ class Hyperlink:
 
     @property
     def info(self) -> dict[str, Any]:
-        """Информация о ссылке в виде словаря."""
+        """Информация о ссылке в виде словаря"""
 
         return {
             "url": self.url,
@@ -109,23 +109,23 @@ class Hyperlink:
         }
 
 
-class HyperlinkExtractor:
+class LinkExtractor:
     """Класс для извлечения и анализа ссылок из файлов .HTML/ссылок/HTML-кода с использованием регулярных выражений.
-    Возвращает список экземпляров класса Hyperlink.
+    Возвращает список экземпляров класса Link.
     """
 
     def __init__(self, base_url: Optional[str] = None):
         self._base_url = base_url.rstrip("/") if base_url else None
 
-    def extract_from_file(self, html_file_path: str, unique: bool = False) -> list[Hyperlink]:
-        """Извлекает ссылки и возвращает экземпляры класса Hyperlink из файла .HTML.
+    def extract_from_file(self, html_file_path: str, unique: bool = False) -> list[Link]:
+        """Извлекает ссылки и возвращает экземпляры класса Link из файла .HTML.
 
         Args:
             html_file_path: путь к файлу .HTML.
             unique: Если True - дубликаты ссылок удаляются. По умолчанию False.
 
         Returns:
-            Список объектов Hyperlink.
+            Список объектов Link.
             Без дубликатов, если unique=True.
 
         Raises:
@@ -151,16 +151,16 @@ class HyperlinkExtractor:
         except OSError as ex:
             raise OSError(f"Ошибка при чтении файла {path}.\nТекст ошибки: {ex}")
 
-        return self.extract_from_html(html_content, unique)
+        return self.extract_from_html_code(html_content, unique)
 
-    def extract_from_url(self, unique: bool = False) -> list[Hyperlink]:
-        """Извлекает ссылки и возвращает экземпляры класса Hyperlink из url.
+    def extract_from_url(self, unique: bool = False) -> list[Link]:
+        """Извлекает ссылки и возвращает экземпляры класса Link из url.
 
         Args:
             unique: Если True - дубликаты ссылок удаляются. По умолчанию False.
 
         Returns:
-            Список объектов Hyperlink.
+            Список объектов Link.
             Без дубликатов, если unique=True.
 
         Raises:
@@ -176,40 +176,42 @@ class HyperlinkExtractor:
 
             response.raise_for_status()
 
-            return self.extract_from_html(response.text, unique)
+            return self.extract_from_html_code(response.text, unique)
         except RequestException as ex:
             raise RequestException(f"Ошибка при получении доступа к удалённому ресурсу {self._base_url}.\nТекст ошибки: {ex}")
 
-    def extract_from_html(self, html_content: str, unique: bool = False) -> list[Hyperlink]:
-        """Извлекает ссылки и возвращает экземпляры класса Hyperlink из HTML-кода.
+    def extract_from_html_code(self, html_content: str, unique: bool = False) -> list[Link]:
+        """Извлекает ссылки и возвращает экземпляры класса Link из HTML-кода.
 
         Args:
             html_content: HTML-код.
             unique: Если True - дубликаты ссылок удаляются. По умолчанию False.
 
         Returns:
-            Список объектов Hyperlink.
+            Список объектов Link.
             Без дубликатов, если unique=True.
         """
 
         if not html_content:
             return []
 
-        matches = re.compile(HYPERLINK_PATTERN, re.IGNORECASE).finditer(html_content)
+        hyperlink_regex = re.compile(HYPERLINK_PATTERN, re.IGNORECASE | re.DOTALL)
+
+        matches = hyperlink_regex.finditer(html_content)
 
         urls = [match.group("url").strip() for match in matches]
 
         if unique:
             urls = set(urls)
 
-        return [Hyperlink(url=url, base_url=self._base_url) for url in urls]
+        return [Link(url=url, base_url=self._base_url) for url in urls]
 
     @staticmethod
-    def validate_hyperlinks(links: list[Hyperlink]) -> list[dict[str, Any]]:
+    def validate_links(links: list[Link]) -> list[dict[str, Any]]:
         """Возвращает список с информацией о каждой ссылке.
 
         Args:
-            links: Список объектов Hyperlink.
+            links: Список объектов Link.
 
         Returns:
             Список словарей с анализом.
@@ -222,23 +224,23 @@ if __name__ == "__main__":
     html = """
     <html>
         <body>
-            <a href="https://example.com/page1">Абсолютная внутренняя</a>
-            <a href="/relative/path">Относительная от корня</a>
-            <a href="contact.html">Относительная от текущей папки</a>
-            <a href="../about/team">Относительная вверх</a>
-            <a href="//evil.com/hack">Протокол-относительная (опасная!)</a>
-            <a href="https://sub.example.com/test">Внешний поддомен</a>
-            <a href="#section2">Только якорь</a>
-            <a href="mailto:user@example.com">Email</a>
-            <a href="   https://example.com/with-spaces   ">С пробелами</a>
+            <a href="https://example.ru/page1">Гиперссылка 1</a>
+            <a href="/relative/path">Гиперссылка 2</a>
+            <a href="contact.html">Гиперссылка 3</a>
+            <a href="../about/team">Гиперссылка 4</a>
+            <a href="//evil.com/hack">Гиперссылка 5</a>
+            <a href="https://sub.example.ru/test">Гиперссылка 6</a>
+            <a href="#section2">Гиперссылка 7</a>
+            <a href="mailto:user@example.ru">Гиперссылка 8</a>
+            <a href="   https://example.ru/with-spaces   ">Гиперссылка 9</a>
         </body>
     </html>
     """
 
-    extractor = HyperlinkExtractor(base_url="https://example.com")
+    extractor = LinkExtractor(base_url="https://example.ru")
 
-    links = extractor.extract_from_html(html)
-    print(f"Найдено ссылок: {len(links)}")
+    links = extractor.extract_from_html_code(html)
+    print(f"Найдено гиперссылок: {len(links)}")
 
     for link in links:
         info = link.info
@@ -251,7 +253,10 @@ if __name__ == "__main__":
         print(f"\tДомен: {info["domain"]}")
         print(f"\tПуть: {info["path"]}")
 
-    print(len(HyperlinkExtractor("https://convertio.co/ru/mp3-ogg/").extract_from_url(unique=True)))
+    print()
+    print("Колчество гиперссылок по URL:", len(LinkExtractor("https://convertio.co/ru").extract_from_url()))
+    print()
 
-    for link in HyperlinkExtractor().extract_from_file("file.html"):
-        print(link.info, end="\n")
+    print("Ссылки из файла:")
+    for link in LinkExtractor("http://localhost:25990").extract_from_file("file.html"):
+        print('\t' + link.absolute)
