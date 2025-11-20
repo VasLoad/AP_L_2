@@ -35,14 +35,6 @@ class Link:
 
         return self._base_url
 
-    @cached_property
-    def _parsed(self) -> ParseResult:
-        """Кэшированный результат urlparse для повторного использования"""
-
-        url_to_parse = self.absolute if self.absolute is not None else self.url
-
-        return urlparse(url_to_parse)
-
     @property
     def is_absolute(self) -> bool:
         """Является ли URL абсолютным"""
@@ -107,6 +99,14 @@ class Link:
             "domain": self.domain,
             "path": self.path,
         }
+
+    @cached_property
+    def _parsed(self) -> ParseResult:
+        """Кэшированный результат urlparse для повторного использования"""
+
+        url_to_parse = self.absolute if self.absolute is not None else self.url
+
+        return urlparse(url_to_parse)
 
 
 class LinkExtractor:
