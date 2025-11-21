@@ -178,13 +178,13 @@ class LinkExtractor:
 
         try:
             with open(html_file_path, "r", encoding="utf-8") as html_file:
-                html_content = html_file.read()
+                html_code = html_file.read()
         except PermissionError:
             raise PermissionError(f"Отсутствуют права на чтение файла {path}.")
         except OSError as ex:
             raise OSError(f"Ошибка при чтении файла {path}.\nТекст ошибки: {ex}")
 
-        return self.extract_from_html_code(html_content, unique)
+        return self.extract_from_html_code(html_code, unique)
 
     def extract_from_url(self, unique: bool = False) -> list[Link]:
         """Извлекает ссылки и возвращает экземпляры класса Link из url.

@@ -1,4 +1,9 @@
 import unittest
+from pathlib import Path
+
+import requests
+from bs4 import BeautifulSoup
+from requests import RequestException
 
 from main import LinkExtractor
 
@@ -172,6 +177,107 @@ class TestHyperlinkRegex(unittest.TestCase):
 
         for hyperlink in hyperlinks:
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 0)
+
+    def test_regex_working_with_file_like_bs4(self):
+        """Проверяет список эквивалентность списков ссылок, полученных нашей программой и библиотекой bs4.
+        Поиск в локальном файле .HTML.
+
+        Raises:
+            FileNotFoundError: Файл .HTML не найден;
+            ValueError: Указанный путь не является файлом .HTML;
+            PermissionError: Отсутствуют права на чтение файла;
+            OSError: Ошибка при чтении файла.
+        """
+
+        paths = [
+            "file.html"
+        ]
+
+        for path in paths:
+            path_to_file = Path(path)
+
+            if not path_to_file.exists():
+                raise FileNotFoundError(f"Файл .HTML не найден: {path_to_file}.")
+
+            if not path_to_file.is_file() or path_to_file.suffix not in (".html", ".htm"):
+                raise ValueError(f"Указанный путь не является файлом .HTML: {path_to_file}.")
+
+            try:
+                with open(path_to_file, "r", encoding="utf-8") as html_file:
+                    html_code = html_file.read()
+
+                    soup = BeautifulSoup(html_code, "html.parser")
+
+                    links_bs4_len = len([a.get("href") for a in soup.find_all("a") if a.get("href")])
+            except PermissionError:
+                raise PermissionError(f"Отсутствуют права на чтение файла {path_to_file}.")
+            except OSError as ex:
+                raise OSError(f"Ошибка при чтении файла {path_to_file}.\nТекст ошибки: {ex}")
+
+            links_this_program_len = len(self.extractor.extract_from_file(path))
+
+            self.assertEqual(links_this_program_len, links_bs4_len)
+
+    def test_regex_working_with_url_like_bs4(self):
+        """Проверяет список эквивалентность списков ссылок, полученных нашей программой и библиотекой bs4.
+        Поиск на удалённом ресурсе по URL.
+
+         Raises:
+             RequestException: Ошибка при получении доступа к удалённому ресурсу.
+        """
+
+        urls = [
+            "https://convertio.co/ru",
+            "https://youtube.com"
+        ]
+
+        for url in urls:
+            try:
+                response = requests.get(url, timeout=25)
+
+                response.raise_for_status()
+
+                soup = BeautifulSoup(response.text, "html.parser")
+
+                links_bs4_len = len([a.get("href") for a in soup.find_all("a") if a.get("href")])
+            except RequestException as ex:
+                raise RequestException(f"Ошибка при получении доступа к удалённому ресурсу {url}.\nТекст ошибки: {ex}")
+
+            links_this_program_len = len(LinkExtractor(url).extract_from_url())
+
+            self.assertEqual(links_this_program_len, links_bs4_len)
+
+    def test_regex_working_with_html_code_like_bs4(self):
+        """Проверяет список эквивалентность списков ссылок, полученных нашей программой и библиотекой bs4.
+        Поиск в HTML-коде.
+
+         Raises:
+             RequestException: Ошибка при получении доступа к удалённому ресурсу.
+        """
+
+        html_code = """
+            <html>
+                <body>
+                    <a href="https://example.ru/page1">Гиперссылка 1</a>
+                    <a href="/relative/path">Гиперссылка 2</a>
+                    <a href="contact.html">Гиперссылка 3</a>
+                    <a href="../about/team">Гиперссылка 4</a>
+                    <a href="//youtube.com/video">Гиперссылка 5</a>
+                    <a href="https://sub.example.ru/test">Гиперссылка 6</a>
+                    <a href="#section2">Гиперссылка 7</a>
+                    <a href="mailto:user@example.ru">Гиперссылка 8</a>
+                    <a href="   https://example.ru/with-spaces   ">Гиперссылка 9</a>
+                </body>
+            </html>
+        """
+
+        links_this_program_len = len(self.extractor.extract_from_html_code(html_code))
+
+        soup = BeautifulSoup(html_code, "html.parser")
+
+        links_bs4_len = len([a.get("href") for a in soup.find_all("a") if a.get("href")])
+
+        self.assertEqual(links_this_program_len, links_bs4_len)
 
 
 if __name__ == '__main__':
