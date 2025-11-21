@@ -15,8 +15,8 @@ TEXT_PRINT_SEPARATOR = "#" * 50
 
 
 class Sandbox:
-    def parse_file(self):
-        """Парсит файл .HTML на гиперссылки"""
+    def extract_from_file(self):
+        """Извлекает гиперссылки из файла .HTML."""
 
         file_path, base_url, unique = self.input_all_params(TEXT_INPUT_FILE_PATH)
 
@@ -29,8 +29,8 @@ class Sandbox:
         except Exception as ex:
             self.print_error(ex)
 
-    def parse_url(self):
-        """Парсит URL удалённого ресурса на гиперссылки"""
+    def extract_from_url(self):
+        """Извлекает гиперссылки с удалённого ресурса по URL."""
 
         url: str = self.input_str(TEXT_INPUT_URL)
         unique: Optional[bool] = self.input_bool(TEXT_INPUT_UNIQUE)
@@ -44,8 +44,8 @@ class Sandbox:
         except Exception as ex:
             self.print_error(ex)
 
-    def parse_stream(self):
-        """Парсит поток на гиперссылки"""
+    def extract_from_stream(self):
+        """Извлекает гиперссылки из потока."""
 
         html_code: str = self.input_str_stream(TEXT_INPUT_HTML_CODE)
         base_url: Optional[str] = self.input_str(TEXT_INPUT_BASE_URL, can_be_empty=True)
@@ -62,7 +62,7 @@ class Sandbox:
         """Выводит информацию о каждой ссылке из списка.
 
         Args:
-            hyperlinks: Список ссылок
+            hyperlinks: Список ссылок.
         """
 
         hyperlinks_len: int = len(hyperlinks)
@@ -87,7 +87,7 @@ class Sandbox:
         """Выводит ошибку в случае возникновения проблемы при работе с парсером гиперссылок.
 
         Args:
-            ex: Текст ошибки
+            ex: Текст ошибки.
         """
 
         print("[= Ошибка! =]")
@@ -95,7 +95,7 @@ class Sandbox:
 
     @staticmethod
     def print_help():
-        """Выводит помощь по работе с программой"""
+        """Выводит помощь по работе с программой."""
 
         print("\n" + "=" * 60)
         print("Источник:")
@@ -115,12 +115,12 @@ class Sandbox:
         """Принимает введённые пользователем с клавиатуры параметры значения для prompt, base_url и unique.
 
         Args:
-            prompt: Промпт для ввода значения запрашиваемого параметра
-            base_url_prompt: Промпт для ввода базового URL
-            unique_prompt: Промпт для ввода значения уникальности гиперссылок
+            prompt: Промпт для ввода значения запрашиваемого параметра;
+            base_url_prompt: Промпт для ввода базового URL;
+            unique_prompt: Промпт для ввода значения уникальности гиперссылок.
 
         Returns:
-            Кортеж значений для запрашиваемого параметра, базового URL и уникальности гиперссылок
+            Кортеж значений для запрашиваемого параметра, базового URL и уникальности гиперссылок.
         """
 
         param: str = self.input_str(prompt)
@@ -133,11 +133,11 @@ class Sandbox:
         """Принимает введённые пользователем с клавиатуры значения в потоке.
 
         Args:
-            prompt: Промпт для ввода значения запрашиваемого параметра
-            stop_command: Команда для прекращения ввода в потоке
+            prompt: Промпт для ввода значения запрашиваемого параметра;
+            stop_command: Команда для прекращения ввода в потоке.
 
         Returns:
-            Введённые пользователем с клавиатуры значения, склеенные в строку
+            Введённые пользователем с клавиатуры значения, склеенные в строку.
         """
 
         html_codes: list[str] = []
@@ -161,7 +161,7 @@ class Sandbox:
         """Принимает введённое пользователем с клавиатуры булевое значение.
         
         Args:
-            prompt: Промпт для ввода значения запрашиваемого параметра
+            prompt: Промпт для ввода значения запрашиваемого параметра.
         """
 
         value: Optional[str] = self.input_str(f"{prompt}? [y/n]", can_be_empty=True)
@@ -176,11 +176,11 @@ class Sandbox:
         """Принимает введённое пользователем с клавиатуры значение.
 
         Args:
-            prompt: Промпт для ввода значения запрашиваемого параметра
-            can_be_empty: Может ли введённое значение быть пустым
+            prompt: Промпт для ввода значения запрашиваемого параметра;
+            can_be_empty: Может ли введённое значение быть пустым.
 
         Returns:
-            Значение для запрашиваемого параметра, None если can_be_empty is True
+            Значение для запрашиваемого параметра (None, если can_be_empty is True).
         """
 
         while True:
@@ -195,12 +195,12 @@ class Sandbox:
                     print("Поле не может быть пустым.")
 
     def run(self):
-        """Запускает работу песочницы"""
+        """Запускает работу песочницы."""
 
         commands = {
-            "1": self.parse_file,
-            "2": self.parse_url,
-            "3": self.parse_stream,
+            "1": self.extract_from_file,
+            "2": self.extract_from_url,
+            "3": self.extract_from_stream,
             "0": self.print_help,
             "help": self.print_help,
             "exit": self.exit
@@ -219,7 +219,7 @@ class Sandbox:
 
     @staticmethod
     def exit():
-        """Завершает работу песочницы"""
+        """Завершает работу песочницы."""
 
         print("\nВыход из программы...")
 
