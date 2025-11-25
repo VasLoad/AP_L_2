@@ -46,9 +46,7 @@ class TestHyperlinkRegex(unittest.TestCase):
         hyperlinks = [
             '<a href="https://example.ru">',
             "<a href='https://example.ru'>",
-            '<a href = "https://example.ru">',
-            '<a href\t=\t"https://example.ru">',
-            '<a HREF="https://example.ru">'
+            '<a href = "https://example.ru">'
         ]
 
         for hyperlink in hyperlinks:
@@ -60,8 +58,7 @@ class TestHyperlinkRegex(unittest.TestCase):
         hyperlinks = [
             '<a href=https://example.ru>',
             "<a href='https://example.ru\">",
-            '<a href="https://example.ru\'>',
-            '<a href=https://example.ru>'
+            '<a href="https://example.ru\'>'
         ]
 
         for hyperlink in hyperlinks:
@@ -73,7 +70,8 @@ class TestHyperlinkRegex(unittest.TestCase):
         hyperlinks = [
             '<a href="    https://example.ru">',
             '<a href="https://example.ru    ">',
-            '<a href="    https://example.ru    ">'
+            '<a href="    https://example.ru    ">',
+            '<a href\t=\t"https://example.ru">'
         ]
 
         for hyperlink in hyperlinks:
@@ -103,14 +101,15 @@ class TestHyperlinkRegex(unittest.TestCase):
             self.assertEqual(len(self.extractor.extract_from_html_code(hyperlink)), 1)
 
     def test_with_other_attributes(self):
-        """Проверяет гиперссылки с другими атрибутами до href."""
+        """Проверяет гиперссылки с другими атрибутами до href и написанием в верхнем регистре href."""
 
         hyperlinks = [
             '<a target="target" href="https://example.ru">',
             '<a class="hyperlink" href="https://example.ru">',
             '<a href="https://example.ru" target="target">',
             '<a href="https://example.ru" class="hyperlink">',
-            '<a target="target" href="https://example.ru" class="hyperlink">'
+            '<a target="target" href="https://example.ru" class="hyperlink">',
+            '<a HREF="https://example.ru">'
         ]
 
         for hyperlink in hyperlinks:
